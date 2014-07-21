@@ -36,6 +36,9 @@ ifneq ($(filter msm8916 msm8909,$(TARGET_BOARD_PLATFORM)),)
 ifneq ($(filter msm8909,$(TARGET_BOARD_PLATFORM)),)
   LOCAL_CFLAGS := -DPLATFORM_MSM8909
 endif
+ifneq ($(filter msm8974,$(TARGET_BOARD_PLATFORM)),)
+  LOCAL_CFLAGS := -DPLATFORM_MSM8974
+endif
 endif
 
 LOCAL_SRC_FILES := \
