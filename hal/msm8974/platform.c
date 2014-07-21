@@ -3098,9 +3098,9 @@ bool platform_check_codec_backend_cfg(struct audio_device* adev,
                 if (out != NULL ) {
                     ALOGV("Offload playback running bw %d sr %d",
                               out->bit_width, out->sample_rate);
-                        if (bit_width < out->bit_width)
+                        if (bit_width != out->bit_width)
                             bit_width = out->bit_width;
-                        if (sample_rate < out->sample_rate)
+                        if (sample_rate != out->sample_rate)
                             sample_rate = out->sample_rate;
                 }
             }
