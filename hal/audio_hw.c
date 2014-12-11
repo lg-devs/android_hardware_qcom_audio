@@ -288,7 +288,6 @@ static bool is_supported_format(audio_format_t format)
         format == AUDIO_FORMAT_AAC_LC ||
         format == AUDIO_FORMAT_AAC_HE_V1 ||
         format == AUDIO_FORMAT_AAC_HE_V2 ||
-        format == AUDIO_FORMAT_PCM_OFFLOAD ||
         format == AUDIO_FORMAT_PCM_16_BIT_OFFLOAD ||
         format == AUDIO_FORMAT_PCM_24_BIT_OFFLOAD ||
         format == AUDIO_FORMAT_FLAC)
@@ -2864,7 +2863,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
 
         if (!is_supported_format(config->offload_info.format) &&
                 !audio_extn_is_dolby_format(config->offload_info.format)) {
-            ALOGE("%s: Unsupported audio format", __func__);
+            ALOGE("%s: Unsupported offload audio format %x", __func__, config->offload_info.format);
             ret = -EINVAL;
             goto error_open;
         }
@@ -2923,7 +2922,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
         /*TODO: Do we need to change it for passthrough */
         out->compr_config.codec->format = SND_AUDIOSTREAMFORMAT_RAW;
 
-        if (config->offload_info.format == AUDIO_FORMAT_AAC)
+        if ((config->offload_info.format & AUDIO_FORMAT_MAIN_MASK) == AUDIO_FORMAT_AAC)
             out->compr_config.codec->format = SND_AUDIOSTREAMFORMAT_RAW;
         if (config->offload_info.format == AUDIO_FORMAT_PCM_16_BIT_OFFLOAD)
             out->compr_config.codec->format = SNDRV_PCM_FORMAT_S16_LE;
