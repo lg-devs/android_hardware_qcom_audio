@@ -112,8 +112,6 @@ ifneq ($(strip $(AUDIO_FEATURE_ENABLED_COMPRESS_VOIP)),false)
     LOCAL_SRC_FILES += voice_extn/compress_voip.c
 endif
 
-endif
-
 ifneq ($(strip $(AUDIO_FEATURE_ENABLED_EXTN_FORMATS)),false)
 LOCAL_CFLAGS += -DFORMATS_ENABLED
 endif
