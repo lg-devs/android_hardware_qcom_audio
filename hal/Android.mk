@@ -21,13 +21,7 @@ endif
 ifneq ($(filter apq8084,$(TARGET_BOARD_PLATFORM)),)
   LOCAL_CFLAGS := -DPLATFORM_APQ8084
 endif
-ifneq ($(filter msm8994,$(TARGET_BOARD_PLATFORM)),)
-  LOCAL_CFLAGS := -DPLATFORM_MSM8994
-endif
-ifneq ($(filter msm8992,$(TARGET_BOARD_PLATFORM)),)
-  LOCAL_CFLAGS := -DPLATFORM_MSM8994
-endif
-ifneq ($(filter msm8992,$(TARGET_BOARD_PLATFORM)),)
+ifneq ($(filter msm8992 msm8994,$(TARGET_BOARD_PLATFORM)),)
   LOCAL_CFLAGS := -DPLATFORM_MSM8994
 endif
 endif
@@ -64,11 +58,11 @@ ifeq ($(strip $(AUDIO_FEATURE_ENABLED_ANC_HEADSET)),true)
     LOCAL_CFLAGS += -DANC_HEADSET_ENABLED
 endif
 
-ifeq ($(strip $(AUDIO_FEATURE_ENABLED_FLUENCE)),true)
+ifneq ($(strip $(AUDIO_FEATURE_ENABLED_FLUENCE)),false)
     LOCAL_CFLAGS += -DFLUENCE_ENABLED
 endif
 
-ifeq ($(strip $(AUDIO_FEATURE_ENABLED_PROXY_DEVICE)),true)
+ifneq ($(strip $(AUDIO_FEATURE_ENABLED_PROXY_DEVICE)),false)
     LOCAL_CFLAGS += -DAFE_PROXY_ENABLED
 endif
 
@@ -86,7 +80,7 @@ ifeq ($(strip $(AUDIO_FEATURE_ENABLED_USBAUDIO)),true)
     LOCAL_SRC_FILES += audio_extn/usb.c
 endif
 
-ifeq ($(strip $(AUDIO_FEATURE_ENABLED_HFP)),true)
+ifneq ($(strip $(AUDIO_FEATURE_ENABLED_HFP)),false)
     LOCAL_CFLAGS += -DHFP_ENABLED
     LOCAL_SRC_FILES += audio_extn/hfp.c
 endif
@@ -106,17 +100,17 @@ ifeq ($(strip $(AUDIO_FEATURE_ENABLED_MULTI_VOICE_SESSIONS)),true)
     LOCAL_CFLAGS += -DMULTI_VOICE_SESSION_ENABLED
     LOCAL_SRC_FILES += voice_extn/voice_extn.c
 
-ifeq ($(strip $(AUDIO_FEATURE_ENABLED_INCALL_MUSIC)),true)
+ifneq ($(strip $(AUDIO_FEATURE_ENABLED_INCALL_MUSIC)),false)
     LOCAL_CFLAGS += -DINCALL_MUSIC_ENABLED
 endif
-ifeq ($(strip $(AUDIO_FEATURE_ENABLED_COMPRESS_VOIP)),true)
+ifneq ($(strip $(AUDIO_FEATURE_ENABLED_COMPRESS_VOIP)),false)
     LOCAL_CFLAGS += -DCOMPRESS_VOIP_ENABLED
     LOCAL_SRC_FILES += voice_extn/compress_voip.c
 endif
 
 endif
 
-ifeq ($(strip $(AUDIO_FEATURE_ENABLED_EXTN_FORMATS)),true)
+ifneq ($(strip $(AUDIO_FEATURE_ENABLED_EXTN_FORMATS)),false)
 LOCAL_CFLAGS += -DFORMATS_ENABLED
 endif
 
@@ -130,7 +124,7 @@ ifdef MULTIPLE_HW_VARIANTS_ENABLED
   LOCAL_SRC_FILES += $(AUDIO_PLATFORM)/hw_info.c
 endif
 
-ifeq ($(strip $(AUDIO_FEATURE_ENABLED_COMPRESS_CAPTURE)),true)
+ifneq ($(strip $(AUDIO_FEATURE_ENABLED_COMPRESS_CAPTURE)),false)
     LOCAL_CFLAGS += -DCOMPRESS_CAPTURE_ENABLED
     LOCAL_SRC_FILES += audio_extn/compress_capture.c
 endif
@@ -190,6 +184,10 @@ ifeq ($(strip $(AUDIO_FEATURE_ENABLED_HDMI_PASSTHROUGH)),true)
     LOCAL_CFLAGS += -DHDMI_PASSTHROUGH_ENABLED
 endif
 
+ifeq ($(AUDIO_FEATURE_LOW_LATENCY_PRIMARY),true)
+    LOCAL_CFLAGS += -DLOW_LATENCY_PRIMARY
+endif
+
 LOCAL_SHARED_LIBRARIES := \
 	liblog \
 	libcutils \
@@ -198,6 +196,12 @@ LOCAL_SHARED_LIBRARIES := \
 	libaudioroute \
 	libdl \
 	libexpat
+
+ifneq ($(BOARD_AUDIO_AMPLIFIER),)
+    LOCAL_CFLAGS += -DUSES_AUDIO_AMPLIFIER
+    LOCAL_SHARED_LIBRARIES += libaudioamp
+    LOCAL_C_INCLUDES += $(BOARD_AUDIO_AMPLIFIER)
+endif
 
 LOCAL_C_INCLUDES += \
 	external/tinyalsa/include \

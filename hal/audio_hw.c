@@ -73,6 +73,10 @@
 #include "sound/compress_params.h"
 #include "sound/asound.h"
 
+#ifdef USES_AUDIO_AMPLIFIER
+#include <audio_amplifier.h>
+#endif
+
 #define COMPRESS_OFFLOAD_NUM_FRAGMENTS 4
 /* ToDo: Check and update a proper value in msec */
 #define COMPRESS_OFFLOAD_PLAYBACK_LATENCY 50
@@ -81,7 +85,11 @@
 #define PROXY_OPEN_RETRY_COUNT           100
 #define PROXY_OPEN_WAIT_TIME             20
 
+#ifdef LOW_LATENCY_PRIMARY
+#define USECASE_AUDIO_PLAYBACK_PRIMARY USECASE_AUDIO_PLAYBACK_LOW_LATENCY
+#else
 #define USECASE_AUDIO_PLAYBACK_PRIMARY USECASE_AUDIO_PLAYBACK_DEEP_BUFFER
+#endif
 
 static unsigned int configured_low_latency_capture_period_size =
         LOW_LATENCY_CAPTURE_PERIOD_SIZE;
@@ -927,6 +935,13 @@ int select_devices(struct audio_device *adev, audio_usecase_t uc_id)
     }
 
     enable_audio_route(adev, usecase);
+
+#ifdef USES_AUDIO_AMPLIFIER
+    /* Rely on amplifier_set_devices to distinguish between in/out devices */
+    amplifier_set_devices(in_snd_device);
+    amplifier_set_devices(out_snd_device);
+#endif
+
 
     /* Applicable only on the targets that has external modem.
      * Enable device command should be sent to modem only after
@@ -1851,7 +1866,8 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
          * Avoid this by routing audio to speaker until standby.
          */
         if ((out->devices == AUDIO_DEVICE_OUT_AUX_DIGITAL ||
-                out->devices == AUDIO_DEVICE_OUT_ANLG_DOCK_HEADSET) &&
+                out->devices == AUDIO_DEVICE_OUT_ANLG_DOCK_HEADSET ||
+                out->devices == AUDIO_DEVICE_OUT_DGTL_DOCK_HEADSET) &&
                 val == AUDIO_DEVICE_NONE) {
             if (!audio_extn_dolby_is_passthrough_stream(out->flags))
                 val = AUDIO_DEVICE_OUT_SPEAKER;
@@ -2770,6 +2786,12 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
                   __func__, ret);
             goto error_open;
         }
+#ifdef LOW_LATENCY_PRIMARY
+    } else if (out->flags & AUDIO_OUTPUT_FLAG_DEEP_BUFFER) {
+        out->usecase = USECASE_AUDIO_PLAYBACK_DEEP_BUFFER;
+        out->config = pcm_config_deep_buffer;
+        out->sample_rate = out->config.rate;
+#endif
     } else if (out->flags & AUDIO_OUTPUT_FLAG_COMPRESS_OFFLOAD) {
         if (config->offload_info.version != AUDIO_INFO_INITIALIZER.version ||
             config->offload_info.size != AUDIO_INFO_INITIALIZER.size) {
@@ -2917,16 +2939,22 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
         out->usecase = USECASE_AUDIO_PLAYBACK_AFE_PROXY;
         out->config = pcm_config_afe_proxy_playback;
         adev->voice_tx_output = out;
+#ifndef LOW_LATENCY_PRIMARY
     } else if (out->flags & AUDIO_OUTPUT_FLAG_FAST) {
         format = AUDIO_FORMAT_PCM_16_BIT;
         out->usecase = USECASE_AUDIO_PLAYBACK_LOW_LATENCY;
         out->config = pcm_config_low_latency;
         out->sample_rate = out->config.rate;
+#endif
     } else {
         /* primary path is the default path selected if no other outputs are available/suitable */
         format = AUDIO_FORMAT_PCM_16_BIT;
         out->usecase = USECASE_AUDIO_PLAYBACK_PRIMARY;
+#ifdef LOW_LATENCY_PRIMARY
+        out->config = pcm_config_low_latency;
+#else
         out->config = pcm_config_deep_buffer;
+#endif
         out->sample_rate = out->config.rate;
     }
 
@@ -3282,6 +3310,10 @@ static int adev_set_mode(struct audio_hw_device *dev, audio_mode_t mode)
     pthread_mutex_lock(&adev->lock);
     if (adev->mode != mode) {
         ALOGD("%s: mode %d\n", __func__, mode);
+#ifdef USES_AUDIO_AMPLIFIER
+        if (amplifier_set_mode(mode) != 0)
+            ALOGE("Failed setting amplifier mode");
+#endif
         adev->mode = mode;
         if ((mode == AUDIO_MODE_NORMAL || mode == AUDIO_MODE_IN_COMMUNICATION) &&
                 voice_is_in_call(adev)) {
@@ -3504,6 +3536,10 @@ static int adev_close(hw_device_t *device)
 
     if ((--audio_device_ref_count) == 0) {
         audio_extn_sound_trigger_deinit(adev);
+#ifdef USES_AUDIO_AMPLIFIER
+        if (amplifier_close() != 0)
+            ALOGE("Amplifier close failed");
+#endif
         audio_extn_listen_deinit(adev);
         audio_extn_utils_release_streams_output_cfg_list(&adev->streams_output_cfg_list);
         audio_route_free(adev->audio_route);
@@ -3658,6 +3694,11 @@ static int adev_open(const hw_module_t *module, const char *name,
 
     audio_extn_utils_update_streams_output_cfg_list(adev->platform, adev->mixer,
                                                     &adev->streams_output_cfg_list);
+
+#ifdef USES_AUDIO_AMPLIFIER
+    if (amplifier_open() != 0)
+        ALOGE("Amplifier initialization failed");
+#endif
 
     audio_device_ref_count++;
 
